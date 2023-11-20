@@ -1,14 +1,14 @@
 const jwt = require('jsonwebtoken');
 const { userSchema } = require("../model/userSchema");
-const { storeUserAccessJWT } = require("../model/User.model");
+const { storeUserAccessJWT } = require("../model/userModel.js");
 
 const createAccessJWT = async (email, _id) => {
     try {
         const accessJWT = jwt.sign({ payload: email },
             process.env.JWT_ACCESS_SECRET,
             { expiresIn: '1h' }
-        );
-
+      );
+      // console.log("Id inside createAccess: ", _id, "AccessJWT: ", accessJWT);
         await storeUserAccessJWT(_id, accessJWT);
         return Promise.resolve(accessJWT);
     } catch (error) {

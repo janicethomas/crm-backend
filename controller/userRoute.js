@@ -1,18 +1,33 @@
+const jwt = require('jsonwebtoken');
 const express = require("express");
-const passport = require('./auth');
 const userSchema = require("../model/userSchema");
-const { getUserByEmail, getUserById } = require("../model/User.model")
-import { setCookie} from "../helpers/cookies.helper";
-
+const { hashPassword, comparePassword } = require("../helpers/bcrypt.helper");
+const { createAccessJWT } = require("../helpers/jwt.helper");
+const { setCookie } = require("../helpers/cookies.helper");
+const bcrypt = require("bcrypt");
+const auth = require("../middlewares/auth_jwt");
 
 const userRoute = new express.Router();
 
-userRoute.post("/create-user",(req,res)=>{
-    userSchema.create(req.body, (err, data) => {
+userRoute.post("/create-user", auth, async (req, res) => {
+    
+    const { userEmail, userPasswd, userRole } = req.body;
+
+    const hashed_pass = await hashPassword(userPasswd);
+    
+    const newUserObj = {
+        userEmail,
+        userPasswd: hashed_pass,
+        userRole,
+    };
+    
+    userSchema.create(newUserObj, (err, data) => {
         if (err)
             return err;
         else
-            res.json(data);
+            res.json({
+                message: "user created successfully",
+            data});
     });
 });
 
@@ -52,35 +67,43 @@ userRoute.delete("/delete-user/:id",(req,res)=>{
 
 
 userRoute.post("/login", async (req, res) => {
-    const { email, password } = req.body;
+    const { userEmail, userPasswd } = req.body;
+    console.log("email: ",userEmail,"password:",userPasswd);
 
-    if (!email || !password) {
-        if (!email || !password) {
-            return res.json({ status: "error", message: "Invalid form submission!" });
-        }
-
-        const user = await getUserByEmail(email);
-        //console.log(user);
-
-        const passFromDb = user && user._id ? user.userPasswd : null;
-
-        if (!passFromDb) {
-            return res.json({ status: "error", message: "Invalid email or password!" });
-        }
-
-        if (password !== passFromDb) {
-            return res.json({ status: "error", message: "Invalid email or password!" });
-        }
-
-        const accessJWT = await createAccessJWT(user.email, `$(user._id`);
-
-        setCookie("jwtToken", accessJWT, 1);
-        res.json({ status: "sucess", message: "Login successfully", accessJWT });
+    if (!userEmail || !userPasswd) {
+        return res.json({ status: "error", message: "Invalid form submission!" });
     }
+
+    // const user = await getUserByEmail(userEmail);
+    // console.log("here:",userEmail);
+    const user = await userSchema.findOne({ userEmail });
+    console.log("user details:",user);
+
+    const passFromDb = user && user._id ? user.userPasswd : null;
+
+    if (!passFromDb) {
+        return res.json({ status: "error", message: "Invalid email or password!" });
+    }
+
+    const result = await comparePassword(userPasswd, passFromDb);
+    console.log(result);
+        
+    if (!result) {
+        res.json({ status: "error", message: "Invalid email or password!" });
+    }
+    // console.log(typeof user._id);
+    // const accessJWT = await createAccessJWT(user.userEmail, `${user._id}`);
+    // setCookie("jwtToken", accessJWT, 1);
+    
+    const accessJWT = jwt.sign({ userEmail },
+        process.env.JWT_ACCESS_SECRET,
+        { expiresIn: '24h' }
+    );
+    return res.json({ status: "sucess", message: "Login successfully", accessJWT });
 });
 
 //get user profile route
-userRoute.get("/", auth, async (req, res) => {
+userRoute.get("/", async (req, res) => {
     const_id = req.userId;
 
     const userProfile = await getUserById(_id);

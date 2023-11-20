@@ -1,11 +1,22 @@
 const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const userSchema = new mongoose.Schema({
-    "userName": {type:String},
-    "userEmail": {type:String},
-    "userPasswd": {type:String},
-    "userRole": { type: String },
-    "accessJWT": {
+const userSchema = new Schema({
+    userEmail: {
+        type: String,
+        required: [true, "Please provide an Email"],
+        unique: [true, "user exists"],
+    },
+    userPasswd: {
+        type: String,
+        required: [true, "Enter your password!"],
+    },
+    userRole: {
+        type: String,
+        require: true,
+        default: "user",
+    },
+    accessJWT: {
         token: {
             type: String,
             maxlength: 500,
@@ -18,7 +29,7 @@ const userSchema = new mongoose.Schema({
         },
     },
 }, {
-    collection: "users"
+    collection: "adarsh"
 });
 
 module.exports = mongoose.model("userSchema", userSchema);
